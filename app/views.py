@@ -1,4 +1,4 @@
-from flask import Flask, flash, session, render_template, request, redirect
+from flask import Flask, flash, session, request, render_template, make_response
 from datetime import datetime
 from functools import wraps
 from models import *
@@ -11,12 +11,12 @@ app.secret_key = b'...'
 
 
 def login_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if session['uid'] is None:
-            return redirect(url_for('login', next=request.url))
-        return f(*args, **kwargs)
-    return decorated_function
+	@wraps(f)
+	def decorated_function(*args, **kwargs):
+		if session['uid'] is None:
+			return redirect(url_for('login', next=request.url))
+		return f(*args, **kwargs)
+	return decorated_function
 
 
 @app.route('/')
@@ -24,9 +24,61 @@ def index():
 	return render_template('index.html')
 
 
-@app.route('/signup', methods=('GET', 'POST'))
-def signup():
-	if request.method == 'POST':
+@app.route('/session', methods=('GET', 'POST', 'DELETE'))
+def session():
+	# SECURITY NOTE: додати підписні flask-сесії до кукі
+	if request.method == 'GET':
+		cookies = request.cookies
+		if cookies.get('uid'):
+			return {
+			'status_code': 200,
+			'status_message': 'Success.',
+			'uid': cookies['uid'],
+			'username': cookies['username']
+			}
+		else:
+			return {'status_code': 404, 'status_message': 'User not found.'}
+
+	elif request.method == 'POST':
+		resp = make_response(render_template('index.html'))
+		login = request.form['login']
+		password = request.form['password']
+		user = User.query.filter_by(login=login, password=password).first()
+		if user:
+			resp.set_cookie('uid', user.uid, max_age=None)
+			resp.set_cookie('username', user.username, max_age=None)
+			return {
+			'status_code': 200,
+			'status_message': 'Success.',
+			'uid': user.uid,
+			'username': user.username
+			}
+		else:
+			return {'status_code': 204, 'status_message': 'Invalid login or password.'}
+
+	elif request.method == 'DELETE':
+		resp = make_response(render_template('index.html'))
+		resp.set_cookie('uid', '', max_age=None)
+		resp.set_cookie('username', '', max_age=None)
+		return {'status_code': 200, 'status_message': 'Success.'}
+
+
+@app.route('/user', defaults={'uid': None}, methods=['POST'])
+@app.route('/user/<int:uid>', methods=['GET', 'DELETE'])
+def user(uid):
+	if request.method == 'GET':
+		user = User.query.get(uid)
+		if user:
+			return {
+			'status_code': 200,
+			'status_message': 'Success.',
+			'uid': user.uid,
+			'username': user.username,
+			# ...
+			}
+		else:
+			return {'status_code': 404, 'status_message': 'User not found.'}
+	elif request.method == 'POST':
 		email = request.form['email']
 		login = request.form['login']
 		password = request.form['password']
@@ -34,79 +86,41 @@ def signup():
 		valid = True
 
 		if password != password_repeat:
-			flash("Password doesn't match!")
-			valid = False
+			return {'status_code': 401, 'status_message': "Passwords doesn't match."}
 
 		user_login = User.query.filter_by(login=login).first()
 		user_email = User.query.filter_by(email=email).first()
 		if user_login:
-			flash('This login is already taken!')
-			valid = False
+			return {'status_code': 409, 'status_message': "Login already taken."}
+
 		if user_email:
-			flash('This email is already taken!')
-			valid = False
+			return {'status_code': 409, 'status_message': "Email already taken."}
 
-		if valid:
-			new_user = User(login=login, password=password, email=email)
-			db.session.add(new_user)
-			db.session.commit()
-			session['uid'] = new_user.uid
-			session['username'] = login
-			return redirect('/')
+		new_user = User(login=login, password=password, email=email)
+		db.session.add(new_user)
+		db.session.commit()
 
-		return render_template('signup.html')
-	else:
-		return render_template('signup.html')
+		resp = make_response(render_template('index.html'))
+		resp.set_cookie('uid', new_user.uid, max_age=None)
+		resp.set_cookie('username', new_user.username, max_age=None)
 
+		return {
+			'status_code': 200,
+			'status_message': 'Success.',
+			'uid': new_user.uid,
+			'username': new_user.username,
+			# ...
+			}
 
-@app.route('/login', methods=('GET', 'POST'))
-def login():
-	if request.method == 'POST':
-		login = request.form['login']
-		password = request.form['password']
-		user = User.query.filter_by(login=login, password=password).first()
-		if user:
-			session['uid'] = user.uid
-			session['username'] = login
-			return redirect('/')
-		else:
-			flash('Invalid login or password!')
-			return render_template('login.html')
-	else:
-		return render_template('login.html')
+	elif request.method == 'DELETE':
+		user = User.query.get(uid)
+		db.session.delete(user)
+		db.session.commit()
 
-@app.route('/logout')
-def logout():
-    session.pop('uid', None)
-    session.pop('username', None)
-    return redirect('/')
+		resp.set_cookie('uid', '', max_age=None)
+		resp.set_cookie('username', '', max_age=None)
 
-@app.route('/profile/<int:profid>')
-def profile(profid):
-	pass
-
-
-@app.route('/blog/<int:blogid>/add-comment', methods=['GET', 'POST'])
-@login_required
-def add_comment(blogid):
-	pass
-
-
-@app.route('/comment/<int:comid>/edit', methods=['GET', 'POST'])
-@login_required
-def edit_comment(comid):
-	pass
-
-
-@app.route('/comment/<int:comid>/delete')
-@login_required
-def delete_comment(comid):
-	comment = Comment.query.get_or_404(comid)
-	if session['uid'] != comment.user and session['username'] != 'admin':
-		return render_template('error.html', error="Access denied!")
-	blog = comment.blog
-	entry_delete(comment)
-	return redirect(f'/blog/{blog}')
+		return {'status_code': 200, 'status_message': 'Success.'}
 
 
 if __name__ == "__main__":
