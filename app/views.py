@@ -74,13 +74,17 @@ def user(uid):
 			'status_message': 'Success.',
 			'uid': user.uid,
 			'username': user.username,
-			# ...
+			'type': user.utype.name,
+			'photo': user.photo.path
 			}
 		else:
 			return {'status_code': 404, 'status_message': 'User not found.'}
 	elif request.method == 'POST':
 		email = request.form['email']
 		login = request.form['login']
+		photo_path = request.form['photo']
+		photo = Attachment(path=photo_path)
+		db.session.add(photo)
 		password = request.form['password']
 		password_repeat = request.form['password-repeat']
 		valid = True
@@ -96,7 +100,7 @@ def user(uid):
 		if user_email:
 			return {'status_code': 409, 'status_message': "Email already taken."}
 
-		new_user = User(login=login, password=password, email=email)
+		new_user = User(login=login, password=password, email=email, photo=photo)
 		db.session.add(new_user)
 		db.session.commit()
 
@@ -109,7 +113,6 @@ def user(uid):
 			'status_message': 'Success.',
 			'uid': new_user.uid,
 			'username': new_user.username,
-			# ...
 			}
 
 	elif request.method == 'DELETE':
@@ -122,6 +125,70 @@ def user(uid):
 
 		return {'status_code': 200, 'status_message': 'Success.'}
 
+
+@app.route('/channel', defaults={'uid': None}, methods=['POST'])
+@app.route('/channel/<int:cid>', methods=['GET', 'PUT', 'DELETE'])
+def channel(cid):
+	if request.method == 'GET':
+		channel = Channel.query.get(cid)
+		if channel:
+			return {
+			'status_code': 200,
+			'status_message': 'Success.',
+			'cid': channel.cid,
+			'name': channel.name,
+			'photo': channel.photo.path
+			}
+		else:
+			return {'status_code': 404, 'status_message': 'Channel not found.'}
+
+	elif request.method == 'POST':
+		name = request.form['name']
+		photo_path = request.form['photo']
+		photo = Attachment(path=photo_path)
+		db.session.add(photo)
+
+		new_channel = Channel(name=name, photo=photo)
+		db.session.add(new_user)
+		db.session.commit()
+
+		return {
+			'status_code': 200,
+			'status_message': 'Success.',
+			'cid': new_channel.cid,
+			'name': new_channel.name,
+			'photo': photo_path
+			}
+
+	elif request.method == 'PUT':
+		channel = Channel.query.get(cid)
+		if channel:
+			name = request.form['name']
+			photo_path = request.form['photo']
+			photo = Attachment(path=photo_path)
+			db.session.add(photo)
+
+			channel.name = name
+			channel.photo = photo
+			db.session.commit()
+			db.session.flush()
+
+			return {
+				'status_code': 200,
+				'status_message': 'Success.',
+				'cid': channel.cid,
+				'name': channel.name,
+				'photo': photo_path
+				}
+		else:
+			return {'status_code': 404, 'status_message': 'Channel not found.'}
+
+	elif request.method == 'DELETE':
+		channel = Channel.query.get(cid)
+		db.session.delete(channel)
+		db.session.commit()
+
+		return {'status_code': 200, 'status_message': 'Success.'}
 
 if __name__ == "__main__":
 	app.run(debug=True)
