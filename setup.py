@@ -1,12 +1,13 @@
 from setuptools import setup
 
 setup(
-    name='KPI social network',
-    packages=['app'],
+    name='kpi_network',
+    packages=['kpi_network'],
     include_package_data=True,
     install_requires=[
         'flask',
         'flask-sqlalchemy',
         'flask-migrate',
+        'dotenv',
     ],
 )
