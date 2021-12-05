@@ -19,6 +19,7 @@ def index():
 def session():
 	# SECURITY NOTE: додати підписні flask-сесії до кукі
 	if request.method == 'GET':
+		# перевірити чи авторизований користувач
 		cookies = request.cookies
 		if cookies.get('uid'):
 			return {
@@ -32,6 +33,7 @@ def session():
 			}, 404
 
 	elif request.method == 'POST':
+		# авторизувати користувача та встановити кукі
 		resp = make_response(render_template('index.html'))
 		data = request.json
 		login = data.get('login')
@@ -50,6 +52,7 @@ def session():
 			}, 401
 
 	elif request.method == 'DELETE':
+		# вийти з акаунту користувача
 		resp = make_response(render_template('index.html'))
 		resp.set_cookie('uid', '', max_age=None)
 		return {
@@ -61,7 +64,9 @@ def session():
 @app.route('/user', defaults={'uid': None}, methods=['POST', 'PUT', 'DELETE'])
 @app.route('/user/<int:uid>', methods=['GET'])
 def user(uid):
+	# uid - id користувача
 	if request.method == 'GET':
+		# отримати інформацію по користувачу
 		user = User.query.get(uid)
 		if user:
 			data = {
@@ -87,6 +92,7 @@ def user(uid):
 				'errors': ['User not found']
 			}, 401
 	elif request.method == 'POST':
+		# створити нового користувача та встановити кукі
 		data = request.json
 		login = data.get('login')
 		password = data.get('password')
@@ -128,6 +134,7 @@ def user(uid):
 		}, 200
 
 	elif request.method == 'DELETE':
+		# видалити користувача користувачу
 		cookies = request.cookies
 		uid = cookies.get('uid')
 		user = User.query.get(uid)
@@ -143,6 +150,7 @@ def user(uid):
 		}, 200
 
 	elif request.method == 'PUT':
+		# оновити інформацію про користувача
 		cookies = request.cookies
 		uid = cookies.get('uid')
 		user = User.query.get(uid)
@@ -160,6 +168,7 @@ def user(uid):
 
 @app.route('/user/channels', methods=['GET'])
 def user_channels():
+	# отримати канали, на які підписаний користувач
 	uid = int(request.cookies.get('uid'))
 	if not uid:
 		return {
@@ -197,8 +206,11 @@ def user_channels():
 @app.route('/channel', defaults={'cid': None}, methods=['POST'])
 @app.route('/channel/<int:cid>', methods=['GET', 'PUT', 'DELETE'])
 def channel(cid):
+	# cid - id каналу
 	if request.method == 'GET':
-		# проверить есть ли юзер в мемберах канала
+		# отримати інформацію про канал
+
+		# TODO перевіряти чи є користувач в мемберах каналу
 		channel = Channel.query.get(cid)
 		if channel:
 			return {
@@ -217,6 +229,7 @@ def channel(cid):
 			}, 404
 
 	elif request.method == 'POST':
+		# створити новий канал
 		uid = int(request.cookies.get('uid'))
 		if not uid:
 			return {
@@ -249,6 +262,7 @@ def channel(cid):
 		}, 200
 
 	elif request.method == 'PUT':
+		# оновити інформацію про канал
 		channel = Channel.query.get(cid)
 		if channel:
 			data = request.json
@@ -270,6 +284,8 @@ def channel(cid):
 			}, 404
 
 	elif request.method == 'DELETE':
+		# видалення каналу
+
 		# TODO зробити можливість видалення тільки для овнера
 		channel = Channel.query.get(cid)
 		db.session.delete(channel)
@@ -283,6 +299,8 @@ def channel(cid):
 
 @app.route('/channel/<int:cid>/members', methods=['GET'])
 def channel_members(cid):
+	# cid - id каналу
+	# отримати список учасників каналу
 	args = request.args
 	page = args.get('page', 1)
 	count = args.get('count', 5)
@@ -322,6 +340,8 @@ def channel_members(cid):
 
 @app.route('/channel/<int:cid>/posts', methods=['GET'])
 def channel_posts(cid):
+	# cid - id каналу
+	# отримати список постів даного каналу
 	args = request.args
 	page = args.get('page', 1)
 	count = args.get('count', 5)
@@ -370,7 +390,9 @@ def channel_posts(cid):
 @app.route('/posts', defaults={'pid': None}, methods=['POST'])
 @app.route('/posts/<int:pid>', methods=['GET', 'PUT', 'DELETE'])
 def posts(pid):
+	# pid - id посту
 	if request.method == 'GET':
+		# отримати інформацію про пост
 		post = Post.query.get(pid)
 		if post:
 			data = {
@@ -405,6 +427,7 @@ def posts(pid):
 			}, 400
 
 	elif request.method == 'POST':
+		# створити новий пост
 		uid = int(request.cookies.get('uid'))
 		if not uid:
 			return {
@@ -434,6 +457,7 @@ def posts(pid):
 
 @app.route('/uploads/<filename>', methods=['GET'])
 def uploads(filename):
+	# доступ до статичного файлу filename
 	# https://flask.palletsprojects.com/en/2.0.x/api/#flask.send_from_directory
 	return send_from_directory('static', filename)
 
