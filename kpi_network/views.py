@@ -34,17 +34,18 @@ def session():
 
 	elif request.method == 'POST':
 		# авторизувати користувача та встановити кукі
-		resp = make_response('Setting a cookie...')
 		data = request.json
 		login = data.get('login')
 		password = data.get('password')
 		user = User.query.filter_by(login=login, password=password).first()
 		if user:
-			resp.set_cookie('uid', str(user.uid), max_age=None)
-			return {
+			res = {
 				'data': {'id': user.uid},
 				'errors': []
-			}, 200
+			}
+			response = make_response(res, 200)
+			response.set_cookie('uid', str(user.uid), max_age=None)
+			return response
 		else:
 			return {
 				'data': {},
@@ -53,12 +54,13 @@ def session():
 
 	elif request.method == 'DELETE':
 		# вийти з акаунту користувача
-		resp = make_response('Setting a cookie...')
-		resp.set_cookie('uid', '', max_age=None)
-		return {
+		res = {
 			'data': {},
 			'errors': []
-		}, 200
+		}
+		response = make_response(res, 200)
+		response.set_cookie('uid', '', max_age=None)
+		return response
 
 
 @app.route('/user', defaults={'uid': None}, methods=['POST', 'PUT', 'DELETE'])
@@ -137,16 +139,17 @@ def user(uid):
 
 		db.session.commit()
 
-		resp = make_response('Setting a cookie...')
-		resp.set_cookie('uid', str(new_user.uid), max_age=None)
-
-		return {
+		res = {
 			'data': {'id': new_user.uid},
 			'errors': []
-		}, 200
+		}
+		response = make_response(res, 200)
+		response.set_cookie('uid', str(new_user.uid), max_age=None)
+
+		return response
 
 	elif request.method == 'DELETE':
-		# видалити користувача користувачу
+		# видалити користувача
 		uid = request.cookies.get('uid')
 		if not uid:
 			return {
@@ -158,13 +161,14 @@ def user(uid):
 		db.session.delete(user)
 		db.session.commit()
 
-		resp = make_response('Setting a cookie...')
-		resp.set_cookie('uid', '', max_age=None)
-
-		return {
+		res = {
 			'data': {},
 			'error': []
-		}, 200
+		}
+		response = make_response(res, 200)
+		response.set_cookie('uid', '', max_age=None)
+
+		return response
 
 	elif request.method == 'PUT':
 		# оновити інформацію про користувача
