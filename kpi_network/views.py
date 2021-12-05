@@ -29,8 +29,8 @@ def session():
 		else:
 			return {
 				'data': {},
-				'errors': ['User not found']
-			}, 404
+				'errors': ['No cookies']
+			}, 200
 
 	elif request.method == 'POST':
 		# авторизувати користувача та встановити кукі
@@ -204,8 +204,8 @@ def user_channels():
 		}, 401
 	uid = int(uid)
 	args = request.args
-	page = args.get('page', 1)
-	count = args.get('count', 5)
+	page = int(args.get('page', 1))
+	count = int(args.get('count', 5))
 	channels = User_Channel.query.filter_by(uid=uid).all()
 	channels_count = len(channels)
 	if channels_count < count:
@@ -330,8 +330,8 @@ def channel_members(cid):
 	# cid - id каналу
 	# отримати список учасників каналу
 	args = request.args
-	page = args.get('page', 1)
-	count = args.get('count', 5)
+	page = int(args.get('page', 1))
+	count = int(args.get('count', 5))
 	users = User_Channel.query.filter_by(cid=cid).all()
 	users_count = len(users)
 	if users_count < count:
@@ -371,8 +371,8 @@ def channel_posts(cid):
 	# cid - id каналу
 	# отримати список постів даного каналу
 	args = request.args
-	page = args.get('page', 1)
-	count = args.get('count', 5)
+	page = int(args.get('page', 1))
+	count = int(args.get('count', 5))
 	posts = Post.query.filter_by(cid=cid).all()
 	posts_count = len(posts)
 	if posts_count < count:
