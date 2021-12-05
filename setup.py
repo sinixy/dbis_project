@@ -8,6 +8,7 @@ setup(
         'flask',
         'flask-sqlalchemy',
         'flask-migrate',
-        'dotenv',
+        'flask-cors',
+        'python-dotenv',
     ],
 )
