@@ -34,7 +34,7 @@ def session():
 
 	elif request.method == 'POST':
 		# авторизувати користувача та встановити кукі
-		resp = make_response(render_template('index.html'))
+		resp = make_response('Setting a cookie...')
 		data = request.json
 		login = data.get('login')
 		password = data.get('password')
@@ -53,7 +53,7 @@ def session():
 
 	elif request.method == 'DELETE':
 		# вийти з акаунту користувача
-		resp = make_response(render_template('index.html'))
+		resp = make_response('Setting a cookie...')
 		resp.set_cookie('uid', '', max_age=None)
 		return {
 			'data': {},
@@ -98,11 +98,13 @@ def user(uid):
 		password = data.get('password')
 		name = data.get('name')
 		status = data.get('status')
+		department = data.get('department')
 		if status:
 			if status.lower() in ['lecturer', 'instructor', 'teacher']:
 				utype = 2
 			elif status.lower() in ['student', 'undergraduate']:
 				utype = 1
+				group = data.get('group')
 			else:
 				return {
 					'data': {},
@@ -125,7 +127,17 @@ def user(uid):
 		db.session.add(new_user)
 		db.session.commit()
 
-		resp = make_response(render_template('index.html'))
+		db.session.refresh(new_user)
+		if utype == 1:
+			new_student = Student(id=new_user.uid, group=group, department=department)
+			db.session.add(new_student)
+		elif utype == 2:
+			new_instructor = Instructor(id=new_user.uid, department=department)
+			db.session.add(new_instructor)
+
+		db.session.commit()
+
+		resp = make_response('Setting a cookie...')
 		resp.set_cookie('uid', str(new_user.uid), max_age=None)
 
 		return {
@@ -135,13 +147,18 @@ def user(uid):
 
 	elif request.method == 'DELETE':
 		# видалити користувача користувачу
-		cookies = request.cookies
-		uid = cookies.get('uid')
+		uid = request.cookies.get('uid')
+		if not uid:
+			return {
+				'data': {'items': [], 'total': None},
+				'errors': ['Unauthorized']
+			}, 401
+		uid = int(uid)
 		user = User.query.get(uid)
 		db.session.delete(user)
 		db.session.commit()
 
-		resp = make_response(render_template('index.html'))
+		resp = make_response('Setting a cookie...')
 		resp.set_cookie('uid', '', max_age=None)
 
 		return {
@@ -153,6 +170,12 @@ def user(uid):
 		# оновити інформацію про користувача
 		cookies = request.cookies
 		uid = cookies.get('uid')
+		if not uid:
+			return {
+				'data': {'items': [], 'total': None},
+				'errors': ['Unauthorized']
+			}, 401
+		uid = int(uid)
 		user = User.query.get(uid)
 		data = request.json
 
@@ -169,13 +192,13 @@ def user(uid):
 @app.route('/user/channels', methods=['GET'])
 def user_channels():
 	# отримати канали, на які підписаний користувач
-	uid = int(request.cookies.get('uid'))
+	uid = request.cookies.get('uid')
 	if not uid:
 		return {
 			'data': {'items': [], 'total': None},
 			'errors': ['Unauthorized']
 		}, 401
-
+	uid = int(uid)
 	args = request.args
 	page = args.get('page', 1)
 	count = args.get('count', 5)
@@ -230,12 +253,13 @@ def channel(cid):
 
 	elif request.method == 'POST':
 		# створити новий канал
-		uid = int(request.cookies.get('uid'))
+		uid = request.cookies.get('uid')
 		if not uid:
 			return {
-				'data': {},
+				'data': {'items': [], 'total': None},
 				'errors': ['Unauthorized']
 			}, 401
+		uid = int(uid)
 		data = request.json
 		name = data.get('name')
 		description = data.get('description', '')
@@ -428,13 +452,14 @@ def posts(pid):
 
 	elif request.method == 'POST':
 		# створити новий пост
-		uid = int(request.cookies.get('uid'))
+		uid = request.cookies.get('uid')
 		if not uid:
 			return {
 				'data': {'items': [], 'total': None},
 				'errors': ['Unauthorized']
 			}, 401
 
+		uid = int(uid)
 		data = request.json
 		cid = data.get('cid')
 		channel = Channel.query.get(cid)
