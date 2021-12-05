@@ -29,7 +29,7 @@ def session():
 			return {
 				'data': {},
 				'errors': ['User not found']
-			}, 204
+			}, 404
 
 	elif request.method == 'POST':
 		resp = make_response(render_template('index.html'))
@@ -47,7 +47,7 @@ def session():
 			return {
 				'data': {},
 				'errors': ['Invalid login or password']
-			}, 204
+			}, 401
 
 	elif request.method == 'DELETE':
 		resp = make_response(render_template('index.html'))
@@ -85,7 +85,7 @@ def user(uid):
 			return {
 				'data': {},
 				'errors': ['User not found']
-			}, 204
+			}, 401
 	elif request.method == 'POST':
 		data = request.json
 		login = data.get('login')
@@ -101,7 +101,7 @@ def user(uid):
 				return {
 					'data': {},
 					'errors': ['Unknown user type']
-				}, 204
+				}, 404
 		else:
 			return {
 				'data': {},
