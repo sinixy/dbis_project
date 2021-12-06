@@ -153,7 +153,7 @@ def user(uid):
 		uid = request.cookies.get('uid')
 		if not uid:
 			return {
-				'data': {'items': [], 'total': None},
+				'data': {},
 				'errors': ['Unauthorized']
 			}, 401
 		uid = int(uid)
@@ -176,15 +176,25 @@ def user(uid):
 		uid = cookies.get('uid')
 		if not uid:
 			return {
-				'data': {'items': [], 'total': None},
+				'data': {},
 				'errors': ['Unauthorized']
 			}, 401
 		uid = int(uid)
 		user = User.query.get(uid)
-		data = request.json
 
-		for attr, value in data.items():
-			setattr(user, attr, value)
+		data = request.json
+		name = data.get('name')
+		department = data.get('department')
+		group = data.get('group')
+		# photo = data.get('photo')
+		user.name = name
+		if group:
+			student = Student.query.get(uid)
+			student.group = group
+			student.department = department
+		else:
+			instructor = Instructor.query.get(uid)
+			instructor.department = department
 
 		db.session.commit()
 		return {
@@ -260,7 +270,7 @@ def channel(cid):
 		uid = request.cookies.get('uid')
 		if not uid:
 			return {
-				'data': {'items': [], 'total': None},
+				'data': {},
 				'errors': ['Unauthorized']
 			}, 401
 		uid = int(uid)
@@ -294,10 +304,12 @@ def channel(cid):
 		channel = Channel.query.get(cid)
 		if channel:
 			data = request.json
+			name = data.get('name')
+			description = data.get('description')
 			# photo = Attachment(path=photo_path)
 			# db.session.add(photo)
-			for attr, value in data.items():
-				setattr(channel, attr, value)
+			channel.name = name
+			channel.description = description
 
 			db.session.commit()
 
@@ -459,13 +471,13 @@ def posts(pid):
 		uid = request.cookies.get('uid')
 		if not uid:
 			return {
-				'data': {'items': [], 'total': None},
+				'data': {},
 				'errors': ['Unauthorized']
 			}, 401
 
 		uid = int(uid)
 		data = request.json
-		cid = data.get('cid')
+		cid = data.get('channelId')
 		channel = Channel.query.get(cid)
 		if not channel:
 			return {
@@ -488,7 +500,7 @@ def posts(pid):
 def uploads(filename):
 	# доступ до статичного файлу filename
 	# https://flask.palletsprojects.com/en/2.0.x/api/#flask.send_from_directory
-	return send_from_directory('static', filename)
+	return send_from_directory('static/media', filename)
 
 
 if __name__ == "__main__":
