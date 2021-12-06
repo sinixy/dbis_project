@@ -10,22 +10,25 @@ def before_first_request():
 	populate_db()
 
 
-@app.route('/')
-def index():
-	return render_template('index.html')
-
-
-@app.route('/session', methods=('GET', 'POST', 'DELETE'))
+@app.route('/api/session', methods=('GET', 'POST', 'DELETE'))
 def session():
 	# SECURITY NOTE: додати підписні flask-сесії до кукі
 	if request.method == 'GET':
 		# перевірити чи авторизований користувач
 		cookies = request.cookies
-		if cookies.get('uid'):
-			return {
-				'data': {'id': int(cookies['uid'])},
-				'errors': []
-			}, 200
+		uid = cookies.get('uid')
+		if uid:
+			user = User.query.get(uid)
+			if user:
+				return {
+					'data': {'id': int(cookies['uid'])},
+					'errors': []
+				}, 200
+			else:
+				return {
+					'data': {},
+					'errors': ['User does not exist']
+				}, 200
 		else:
 			return {
 				'data': {},
@@ -63,8 +66,8 @@ def session():
 		return response
 
 
-@app.route('/user', defaults={'uid': None}, methods=['POST', 'PUT', 'DELETE'])
-@app.route('/user/<int:uid>', methods=['GET'])
+@app.route('/api/user', defaults={'uid': None}, methods=['POST', 'PUT', 'DELETE'])
+@app.route('/api/user/<int:uid>', methods=['GET'])
 def user(uid):
 	# uid - id користувача
 	if request.method == 'GET':
@@ -203,7 +206,7 @@ def user(uid):
 		}, 200
 
 
-@app.route('/user/channels', methods=['GET'])
+@app.route('/api/user/channels', methods=['GET'])
 def user_channels():
 	# отримати канали, на які підписаний користувач
 	uid = request.cookies.get('uid')
@@ -240,8 +243,8 @@ def user_channels():
 	}, 200
 
 
-@app.route('/channel', defaults={'cid': None}, methods=['POST'])
-@app.route('/channel/<int:cid>', methods=['GET', 'PUT', 'DELETE'])
+@app.route('/api/channel', defaults={'cid': None}, methods=['POST'])
+@app.route('/api/channel/<int:cid>', methods=['GET', 'PUT', 'DELETE'])
 def channel(cid):
 	# cid - id каналу
 	if request.method == 'GET':
@@ -337,7 +340,7 @@ def channel(cid):
 		}, 200
 
 
-@app.route('/channel/<int:cid>/members', methods=['GET'])
+@app.route('/api/channel/<int:cid>/members', methods=['GET'])
 def channel_members(cid):
 	# cid - id каналу
 	# отримати список учасників каналу
@@ -378,7 +381,7 @@ def channel_members(cid):
 		'errors': []
 	}, 200
 
-@app.route('/channel/<int:cid>/posts', methods=['GET'])
+@app.route('/api/channel/<int:cid>/posts', methods=['GET'])
 def channel_posts(cid):
 	# cid - id каналу
 	# отримати список постів даного каналу
@@ -427,8 +430,8 @@ def channel_posts(cid):
 	}, 200
 
 
-@app.route('/posts', defaults={'pid': None}, methods=['POST'])
-@app.route('/posts/<int:pid>', methods=['GET', 'PUT', 'DELETE'])
+@app.route('/api/posts', defaults={'pid': None}, methods=['POST'])
+@app.route('/api/posts/<int:pid>', methods=['GET', 'PUT', 'DELETE'])
 def posts(pid):
 	# pid - id посту
 	if request.method == 'GET':
@@ -496,11 +499,17 @@ def posts(pid):
 		}, 200
 
 
-@app.route('/uploads/<filename>', methods=['GET'])
+@app.route('/api/uploads/<filename>', methods=['GET'])
 def uploads(filename):
 	# доступ до статичного файлу filename
 	# https://flask.palletsprojects.com/en/2.0.x/api/#flask.send_from_directory
 	return send_from_directory('static/media', filename)
+
+
+@app.route('/', defaults={'u_path': ''})
+@app.route('/<path:u_path>')
+def index(u_path):
+	return render_template('index.html')
 
 
 if __name__ == "__main__":
