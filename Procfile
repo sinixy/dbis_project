@@ -1,1 +1,1 @@
-web: gunicorn kpi_network:app --log-file -
+web: gunicorn kpi_network:app
