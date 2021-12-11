@@ -641,13 +641,22 @@ def search():
 
 	items = []
 	for u in res_page:
-		items.append({
+		entry = {
 			'id': u.uid,
 			'login': u.login,
 			'name': u.name,
 			'status': u.utype.name,
 			'photo': u.photo.path
-		})
+		}
+
+		if u.utype_id == 1:  # student
+			student = Student.query.get(u.uid)
+			entry['department'] = student.department
+			entry['group'] = student.group
+		elif u.utype_id == 2:  # insturctor
+			instructor = Instructor.query.get(u.uid)
+			entry['department'] = instructor.department
+		items.append(entry)
 	return {
 		'data': {
 			'items': items,
