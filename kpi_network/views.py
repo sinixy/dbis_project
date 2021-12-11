@@ -596,6 +596,14 @@ def search():
 	uid = int(uid)
 	args = request.args
 	q = args.get('query')
+	if not q:
+		return {
+			'data': {
+				'items': [],
+				'total': 0
+			},
+			'errors': []
+		}, 200
 	page = int(args.get('page', 1))
 	count = int(args.get('count', 5))
 
@@ -644,8 +652,9 @@ def search():
 		'data': {
 			'items': items,
 			'total': len(res)
-		}
-	}
+		},
+		'errors': []
+	}, 200
 
 @app.route('/api/user/contacts', methods=['GET'])
 def user_contacts():
