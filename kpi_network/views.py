@@ -621,16 +621,19 @@ def search():
 				'errors': ['Invalid contact value']
 			}
 
-		if len(res) < count:
+		total = len(res)
+
+		if total < count:
 			res_page = res
 		else:
 			start = (page - 1) * count
 			end = start + count
 			res_page = res[start:end]
 	else:
-		res_raw = User.query.msearch(q, fields=['login', 'name'])
+		res = User.query.msearch(q, fields=['login', 'name'])
+		total = res.count()
 		start = (page - 1) * count
-		res_page = res_raw.limit(count).offset(start).all()
+		res_page = res.limit(count).offset(start).all()
 
 	items = []
 	for u in res_page:
@@ -658,7 +661,7 @@ def search():
 	return {
 		'data': {
 			'items': items,
-			'total': len(res)
+			'total': total
 		},
 		'errors': []
 	}, 200
@@ -763,6 +766,17 @@ def contact(contact_id):
 			'data': {},
 			'errors': []
 		}, 200
+
+@app.route('/api/direct/<int:uid>', methods=['GET'])
+def direct(uid):
+	uid = request.cookies.get('uid')
+	if not uid:
+		return {
+			'data': {},
+			'errors': ['Unauthorized']
+		}, 401
+	uid = int(uid)
+
 
 
 @app.route('/uploads/<filename>', methods=['GET'])
