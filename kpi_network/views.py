@@ -17,7 +17,7 @@ def save_image(b64string, uid):
 	image_data = bytes(b64string[starter+1:], encoding='ascii')
 	with Image.open(BytesIO(b64decode(image_data))) as img:
 		filename = f'{uid}_{int(datetime.now().timestamp())}.{img.format.lower()}'
-		img.save(f'static/media/{filename}')
+		img.save(f'kpi_network/static/media/{filename}')
 	# https://stackoverflow.com/questions/54147694/python-how-to-turn-an-image-into-a-string-and-back
 	return filename
 
@@ -767,8 +767,9 @@ def contact(contact_id):
 			'errors': []
 		}, 200
 
-@app.route('/api/direct/<int:uid>', methods=['GET'])
-def direct(uid):
+
+@app.route('/api/direct/<int:partner>', methods=['GET'])
+def direct(partner):
 	uid = request.cookies.get('uid')
 	if not uid:
 		return {
@@ -776,7 +777,32 @@ def direct(uid):
 			'errors': ['Unauthorized']
 		}, 401
 	uid = int(uid)
+	args = request.args
+	page = int(args.get('page', 1))
+	count = int(args.get('count', 5))
+	messages = Message.query.filter(
+		( (Message.sender == partner) & (Message.receiver == uid) ) | ( (Message.sender == uid) & (Message.receiver == partner) )
+	).order_by(Message.date.desc())
+	messages_count = messages.count()
+	if messages_count < count:
+		messages_page = messages.all()
+	else:
+		start = (page - 1) * count
+		messages_page = messages.limit(count).offset(start).all()
 
+	items = []
+	for m in messages_page:
+		entry = {
+			'id': m.id,
+			'authorId': m.sender,
+			'text': m.text
+		}
+		items.append(entry)
+
+	return {
+		'data': {'items': items, 'total': messages_count},
+		'errors': []
+	}, 200
 
 
 @app.route('/uploads/<filename>', methods=['GET'])
