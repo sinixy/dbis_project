@@ -1,11 +1,14 @@
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
+from flask_msearch import Search
 from datetime import datetime
 from kpi_network import app
 import os
 
 
 db = SQLAlchemy(app)
+search = Search(db=db)
+search.init_app(app)
 migrate = Migrate(app, db)
 
 
@@ -19,7 +22,7 @@ class User_Types(db.Model):
 
 class User(db.Model):
 	uid = db.Column(db.Integer,  primary_key=True)
-	login = db.Column(db.String(128), nullable=False)
+	login = db.Column(db.String(128), nullable=False, unique=True)
 	password = db.Column(db.String(64), nullable=False)
 	name = db.Column(db.String(128), nullable=False)
 	cookie = db.Column(db.String(128), nullable=True)
@@ -54,16 +57,14 @@ class Channel(db.Model):
 class User_Channel(db.Model):
 	'''
 	Access levels:
-		0 - user (read, comment)
-		1 - user (read, comment, post)
-		2 - moderator (delete posts, ban/mute/add users)
-		3 - owner (change channel info, give permissions, delete channel)
+		0 - user (read, comment, post)
+		1 - owner (change channel info, give permissions)
 	'''
 	uid = db.Column(db.Integer, db.ForeignKey(User.uid, ondelete="CASCADE"), primary_key=True)
 	cid = db.Column(db.Integer, db.ForeignKey(Channel.cid, ondelete="CASCADE"), primary_key=True)
 	user = db.relationship(User)
 	channel = db.relationship(Channel)
-	access_level = db.Column(db.String(128), default=0, nullable=False)
+	access_level = db.Column(db.Integer, default=0, nullable=False)
 
 
 class Post(db.Model):
@@ -89,8 +90,21 @@ class Comment(db.Model):
 	attachment = db.relationship(Attachment)
 	date = db.Column(db.DateTime, nullable=False, default=datetime.now)
 
-	def __repr__(self):
-		return f'<Comment {self.comid}>'
+
+class Message(db.Model):
+	id = db.Column(db.Integer, primary_key=True)
+	sender = db.Column(db.Integer, db.ForeignKey(User.uid), nullable=False)
+	receiver = db.Column(db.Integer, db.ForeignKey(User.uid), nullable=False)
+	text = db.Column(db.Text, nullable=False, default='')
+	aid = db.Column(db.Integer, db.ForeignKey(Attachment.aid, ondelete="CASCADE"), nullable=True)
+	attachment = db.relationship(Attachment)
+	date = db.Column(db.DateTime, nullable=False, default=datetime.now)
+
+
+class Contacts(db.Model):
+	uid_1 = db.Column(db.Integer, primary_key=True)
+	uid_2 = db.Column(db.Integer, primary_key=True)
+
 
 def populate_db():
 	db.create_all()
@@ -105,7 +119,9 @@ def populate_db():
 			'Channel': Channel,
 			'User_Channel': User_Channel,
 			'Post': Post,
-			'Comment': Comment
+			'Comment': Comment,
+			'Message': Message,
+			'Contacts': Contacts
 		}
 
 		for table, model in tables.items():

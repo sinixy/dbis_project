@@ -9,6 +9,14 @@ from kpi_network import app
 def before_first_request():
 	populate_db()
 
+def save_image(b64string, uid):
+	# filename = f'{uid}_{int(datetime.now().timestamp())}.{format}'
+	print('SAVE IMAGE INPUT')
+	print('Type:', type(b64string))
+	print(b64string)
+	# https://stackoverflow.com/questions/54147694/python-how-to-turn-an-image-into-a-string-and-back
+	return
+
 
 @app.route('/api/session', methods=('GET', 'POST', 'DELETE'))
 def session():
@@ -74,12 +82,18 @@ def user(uid):
 		# отримати інформацію по користувачу
 		user = User.query.get(uid)
 		if user:
+			current_uid = int(request.cookies.get('uid', 0))
+			if current_uid == uid:
+				isContact = None
+			else:
+				isContact = bool( Contacts.query.get((current_uid, uid)) )
 			data = {
 				'id': user.uid,
 				'login': user.login,
 				'name': user.name,
 				'status': user.utype.name,
-				'photo': user.photo.path
+				'photo': user.photo.path,
+				'isContact': isContact
 			}
 
 			if user.utype_id == 1:  # student
@@ -104,6 +118,7 @@ def user(uid):
 		name = data.get('name')
 		status = data.get('status')
 		department = data.get('department')
+		photo = data.get('photo')
 		if status:
 			if status.lower() in ['lecturer', 'instructor', 'teacher']:
 				utype = 2
@@ -139,6 +154,7 @@ def user(uid):
 		elif utype == 2:
 			new_instructor = Instructor(id=new_user.uid, department=department)
 			db.session.add(new_instructor)
+		save_image(photo, new_user.uid)
 
 		db.session.commit()
 
@@ -189,7 +205,7 @@ def user(uid):
 		name = data.get('name')
 		department = data.get('department')
 		group = data.get('group')
-		# photo = data.get('photo')
+		photo = data.get('photo')
 		user.name = name
 		if group:
 			student = Student.query.get(uid)
@@ -198,6 +214,8 @@ def user(uid):
 		else:
 			instructor = Instructor.query.get(uid)
 			instructor.department = department
+
+		save_image(photo, uid)
 
 		db.session.commit()
 		return {
@@ -238,7 +256,7 @@ def user_channels():
 		})
 
 	return {
-		'data': {'items': items, 'total': len(items)},
+		'data': {'items': items, 'total': channels_count},
 		'errors': []
 	}, 200
 
@@ -258,7 +276,9 @@ def channel(cid):
 					'id': channel.cid,
 					'name': channel.name,
 					'description': channel.description,
-					'photo': channel.photo.path
+					'photo': channel.photo.path,
+					'creatorId': User_Channel.query.filter_by(cid=channel.cid, access_level=1).first().uid,
+					'members': [u.uid for u in User_Channel.query.filter_by(cid=cid).all()]
 				},
 				'errors': []
 			}, 200
@@ -280,11 +300,8 @@ def channel(cid):
 		data = request.json
 		name = data.get('name')
 		description = data.get('description', '')
-		# photo_path = request.form['photo']
-		# photo = Attachment(path=photo_path)
-		# db.session.add(photo)
-
-		# members = data.get('members')
+		photo = data.get('photo')
+		members = data.get('members')
 
 		new_channel = Channel(name=name, description=description)
 		db.session.add(new_channel)
@@ -292,8 +309,13 @@ def channel(cid):
 		db.session.commit()
 		db.session.refresh(new_channel)
 
-		user_channel = User_Channel(uid=uid, cid=new_channel.cid, access_level=3)
+		user_channel = User_Channel(uid=uid, cid=new_channel.cid, access_level=1)
 		db.session.add(user_channel)
+		if members:
+			for m in members:
+				db.session.add(User_Channel(uid=m, cid=new_channel.cid, access_level=0))
+
+		save_image(photo, uid)
 
 		db.session.commit()
 
@@ -304,15 +326,44 @@ def channel(cid):
 
 	elif request.method == 'PUT':
 		# оновити інформацію про канал
+		uid = request.cookies.get('uid')
+		if not uid:
+			return {
+				'data': {},
+				'errors': ['Unauthorized']
+			}, 401
+		uid = int(uid)
+		
 		channel = Channel.query.get(cid)
 		if channel:
+			if uid != User_Channel.query.filter_by(cid=cid, access_level=1).first().uid:
+				return {
+					'data': {},
+					'errors': ['Access denied']
+				}, 200
 			data = request.json
 			name = data.get('name')
 			description = data.get('description')
-			# photo = Attachment(path=photo_path)
-			# db.session.add(photo)
+
+			members_request = data.get('members')
+			members_in_channel = [u.uid for u in User_Channel.query.filter_by(cid=cid).all()]
+			members_to_delete = set(members_in_channel) - set(members_request)
+			members_to_add = set(members_request) - set(members_in_channel)
+
+			photo = data.get('photo')
 			channel.name = name
 			channel.description = description
+
+			for m in members_to_add:
+				db.session.add(User_Channel(uid=m, cid=cid, access_level=0))
+			for m in members_to_delete:
+				if m == uid:
+					continue
+				user_channel_to_delete = User_Channel.query.get((m, cid))
+				if user_channel_to_delete:
+					db.session.delete(user_channel_to_delete)
+
+			save_image(photo, uid)
 
 			db.session.commit()
 
@@ -377,7 +428,7 @@ def channel_members(cid):
 		items.append(entry)
 
 	return {
-		'data': {'items': items, 'total': len(items)},
+		'data': {'items': items, 'total': users_count},
 		'errors': []
 	}, 200
 
@@ -425,7 +476,7 @@ def channel_posts(cid):
 		items.append(entry)
 
 	return {
-		'data': {'items': items, 'total': len(items)},
+		'data': {'items': items, 'total': posts_count},
 		'errors': []
 	}, 200
 
@@ -499,7 +550,170 @@ def posts(pid):
 		}, 200
 
 
-@app.route('/api/uploads/<filename>', methods=['GET'])
+@app.route('/api/search', methods=['GET'])
+def search():
+	uid = request.cookies.get('uid')
+	if not uid:
+		return {
+			'data': {'items': [], 'total': None},
+			'errors': ['Unauthorized']
+		}, 401
+	uid = int(uid)
+	args = request.args
+	q = args.get('query')
+	page = args.get('page', 1)
+	count = args.get('count', 5)
+
+	# 1 - только контакты, 2 - только не контакты, 0 - все
+	search_type = int(args.get('contact', 0))
+	res_raw = User.query.msearch(q, fields=['login', 'name']).all()
+	user_contacts = [i.uid_2 for i in Contacts.query.filter_by(uid_1=uid).all()]
+	if search_type == 0:
+		# шукати серед усіх користувачів
+		res = res_raw
+	elif search_type == 1:
+		# шукати лише серед контактів
+		res = []
+		for u in res_raw:
+			if u.uid in user_contacts:
+				res.append(u)
+	elif search_type == 2:
+		# шукати серед усіх користувачів, окрім контактів
+		res = []
+		for u in res_raw:
+			if u.uid not in user_contacts:
+				res.append(u)
+	else:
+		return {
+			'data': {},
+			'errors': ['Invalid contact value']
+		}
+
+	if len(res) < count:
+		res_page = res
+	else:
+		start = (page - 1) * count
+		end = start + count
+		res_page = res[start:end]
+
+	items = []
+	for u in res_page:
+		items.append({
+			'id': u.uid,
+			'login': u.login,
+			'name': u.name,
+			'status': u.utype.name,
+			'photo': u.photo.path
+		})
+	return {
+		'data': {
+			'items': items,
+			'total': len(res)
+		}
+	}
+
+@app.route('/api/user/contacts', methods=['GET'])
+def user_contacts():
+	uid = request.cookies.get('uid')
+	if not uid:
+		return {
+			'data': {'items': [], 'total': None},
+			'errors': ['Unauthorized']
+		}, 401
+	uid = int(uid)
+	args = request.args
+	page = int(args.get('page', 1))
+	count = int(args.get('count', 5))
+	contacts = [i.uid_2 for i in Contacts.query.filter_by(uid_1=uid).all()]
+	contacts_count = len(contacts)
+	if contacts_count < count:
+		contacts_page = contacts
+	else:
+		start = (page - 1) * count
+		end = start + count
+		contacts_page = contacts[start:end]
+
+	items = []
+	for uc in contacts_page:
+		user = User.query.get(uc)
+		entry = {
+			'id': user.uid,
+			'login': user.login,
+			'name': user.name,
+			'status': user.utype.name,
+			'photo': user.photo.path
+		}
+
+		if user.utype_id == 1:  # student
+			student = Student.query.get(user.uid)
+			entry['department'] = student.department
+			entry['group'] = student.group
+		elif user.utype_id == 2:  # insturctor
+			instructor = Instructor.query.get(user.uid)
+			entry['department'] = instructor.department
+		items.append(entry)
+
+	return {
+		'data': {
+			'items': items,
+			'total': contacts_count
+		}
+	}, 200
+
+
+
+@app.route('/api/contact/<int:contact_id>', methods=['POST', 'DELETE'])
+def contact(contact_id):
+	uid = request.cookies.get('uid')
+	if not uid:
+		return {
+			'data': {},
+			'errors': ['Unauthorized']
+		}, 401
+	uid = int(uid)
+	if uid == contact_id:
+		return {
+			'data': {},
+			'errors': ["Get a life bro"]
+		}, 200
+
+	user_contacts = [i.uid_2 for i in Contacts.query.filter_by(uid_1=uid).all()]
+
+	if request.method == 'POST':
+		if contact_id in user_contacts:
+			return {
+				'data': {},
+				'errors': ['Contact alredy exists']
+			}, 200
+
+		new_contact_1 = Contacts(uid_1=uid, uid_2=contact_id)
+		new_contact_2 = Contacts(uid_1=contact_id, uid_2=uid)
+		db.session.add(new_contact_1)
+		db.session.add(new_contact_2)
+		db.session.commit()
+		return {
+			'data': {},
+			'errors': []
+		}, 200
+
+	elif request.method == 'DELETE':
+		if contact_id not in user_contacts:
+			return {
+				'data': {},
+				'errors': ['Contact does not exist']
+			}, 200
+		contact_1 = Contacts.query.get((uid, contact_id))
+		contact_2 = Contacts.query.get((contact_id, uid))
+		db.session.delete(contact_1)
+		db.session.delete(contact_2)
+		db.session.commit()
+		return {
+			'data': {},
+			'errors': []
+		}, 200
+
+
+@app.route('/uploads/<filename>', methods=['GET'])
 def uploads(filename):
 	# доступ до статичного файлу filename
 	# https://flask.palletsprojects.com/en/2.0.x/api/#flask.send_from_directory
