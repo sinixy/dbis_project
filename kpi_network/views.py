@@ -425,46 +425,6 @@ def channel(cid):
 		}, 200
 
 
-@app.route('/api/channel/<int:cid>/members', methods=['GET'])
-def channel_members(cid):
-	# cid - id каналу
-	# отримати список учасників каналу
-	args = request.args
-	page = int(args.get('page', 1))
-	count = int(args.get('count', 5))
-	users = User_Channel.query.filter_by(cid=cid)
-	users_count = users.count()
-	if users_count < count:
-		users_page = users.all()
-	else:
-		start = (page - 1) * count
-		users_page = users.limit(count).offset(start).all()
-
-	items = []
-	for u in users_page:
-		user = u.user
-		entry = {
-			'id': user.uid,
-			'login': user.login,
-			'name': user.name,
-			'status': user.utype.name,
-			'photo': user.photo.path if user.photo else None
-		}
-
-		if user.utype_id == 1:  # student
-			student = Student.query.get(user.uid)
-			entry['department'] = student.department
-			entry['group'] = student.group
-		elif user.utype_id == 2:  # insturctor
-			instructor = Instructor.query.get(user.uid)
-			entry['department'] = instructor.department
-		items.append(entry)
-
-	return {
-		'data': {'items': items, 'total': users_count},
-		'errors': []
-	}, 200
-
 @app.route('/api/channel/<int:cid>/posts', methods=['GET'])
 def channel_posts(cid):
 	# cid - id каналу
@@ -584,6 +544,7 @@ def posts(pid):
 
 @app.route('/api/search', methods=['GET'])
 def search():
+	# пошук користувача по логіну або імені
 	uid = request.cookies.get('uid')
 	if not uid:
 		return {
@@ -596,7 +557,7 @@ def search():
 	page = int(args.get('page', 1))
 	count = int(args.get('count', 5))
 	if q:
-		# 1 - только контакты, 2 - только не контакты, 0 - все
+		# 1 - тільки контакти, 2 - только не контакти, 0 - усі
 		search_type = int(args.get('contact', 0))
 		res_raw = User.query.msearch(q, fields=['login', 'name']).all()
 		user_contacts = [i.uid_2 for i in Contacts.query.filter_by(uid_1=uid).all()]
@@ -668,6 +629,7 @@ def search():
 
 @app.route('/api/user/contacts', methods=['GET'])
 def user_contacts():
+	# отримати контакти користувача
 	uid = request.cookies.get('uid')
 	if not uid:
 		return {
@@ -684,7 +646,6 @@ def user_contacts():
 		contacts_page = contacts.all()
 	else:
 		start = (page - 1) * count
-		#end = start + count - 1
 		contacts_page = contacts.limit(count).offset(start).all()
 
 	items = []
@@ -719,6 +680,7 @@ def user_contacts():
 
 @app.route('/api/contact/<int:contact_id>', methods=['POST', 'DELETE'])
 def contact(contact_id):
+	# contact_id - ID контакту
 	uid = request.cookies.get('uid')
 	if not uid:
 		return {
@@ -735,6 +697,7 @@ def contact(contact_id):
 	user_contacts = [i.uid_2 for i in Contacts.query.filter_by(uid_1=uid).all()]
 
 	if request.method == 'POST':
+		# додати новий контакт
 		if contact_id in user_contacts:
 			return {
 				'data': {},
@@ -752,6 +715,7 @@ def contact(contact_id):
 		}, 200
 
 	elif request.method == 'DELETE':
+		# видалити контакт
 		if contact_id not in user_contacts:
 			return {
 				'data': {},
@@ -770,6 +734,8 @@ def contact(contact_id):
 
 @app.route('/api/direct/<int:partner>', methods=['GET'])
 def direct(partner):
+	# partner - ID партнера, з яким веде переписку поточний користувач
+	# отримати дані переписки (повідомлення) між поточним користувачем та partner'ом
 	uid = request.cookies.get('uid')
 	if not uid:
 		return {
@@ -795,6 +761,7 @@ def direct(partner):
 		entry = {
 			'id': m.id,
 			'authorId': m.sender,
+			'receiverId': m.receiver,
 			'text': m.text
 		}
 		items.append(entry)
@@ -805,10 +772,35 @@ def direct(partner):
 	}, 200
 
 
+@app.route('/api/message', methods=['POST'])
+def message():
+	# надіслати повідомлення
+	uid = request.cookies.get('uid')
+	if not uid:
+		return {
+			'data': {},
+			'errors': ['Unauthorized']
+		}, 401
+	uid = int(uid)
+	receiver = data.get('receiverId')
+	text = data.get('text')
+
+	new_message = Message(sender=uid, receiver=receiver, text=text)
+	db.session.add(new_message)
+	db.session.commit()
+	db.session.refresh(new_message)
+	return {
+		'data': {
+			'id': new_message.id
+		},
+		'errors': []
+	}, 200
+
+
+
 @app.route('/uploads/<filename>', methods=['GET'])
 def uploads(filename):
 	# доступ до статичного файлу filename
-	# https://flask.palletsprojects.com/en/2.0.x/api/#flask.send_from_directory
 	return send_from_directory('static/media', filename)
 
 
