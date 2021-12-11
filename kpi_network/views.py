@@ -3,6 +3,9 @@ from datetime import datetime
 from functools import wraps
 from kpi_network.models import *
 from kpi_network import app
+from base64 import b64decode
+from io import BytesIO
+from PIL import Image
 
 
 @app.before_first_request
@@ -10,12 +13,13 @@ def before_first_request():
 	populate_db()
 
 def save_image(b64string, uid):
-	# filename = f'{uid}_{int(datetime.now().timestamp())}.{format}'
-	print('SAVE IMAGE INPUT')
-	print('Type:', type(b64string))
-	print(b64string)
+	starter = b64string.find(',')
+	image_data = bytes(b64string[starter+1:], encoding='ascii')
+	with Image.open(BytesIO(b64decode(image_data))) as img:
+		filename = f'{uid}_{int(datetime.now().timestamp())}.{img.format.lower()}'
+		img.save(f'static/media/{filename}')
 	# https://stackoverflow.com/questions/54147694/python-how-to-turn-an-image-into-a-string-and-back
-	return
+	return filename
 
 
 @app.route('/api/session', methods=('GET', 'POST', 'DELETE'))
@@ -144,6 +148,15 @@ def user(uid):
 			}, 409
 
 		new_user = User(login=login, password=password, name=name, utype_id=utype)
+		if photo:
+			photo_path = save_image(photo, new_user.uid)
+			new_photo = Attachment(path=photo_path)
+			db.session.add(new_photo)
+			db.session.commit()
+			db.session.refresh(new_photo)
+			photo_id = new_photo.aid
+			new_user.photo_id = photo_id
+
 		db.session.add(new_user)
 		db.session.commit()
 
@@ -154,7 +167,8 @@ def user(uid):
 		elif utype == 2:
 			new_instructor = Instructor(id=new_user.uid, department=department)
 			db.session.add(new_instructor)
-		save_image(photo, new_user.uid)
+
+
 
 		db.session.commit()
 
@@ -215,7 +229,14 @@ def user(uid):
 			instructor = Instructor.query.get(uid)
 			instructor.department = department
 
-		save_image(photo, uid)
+		if photo:
+			photo_path = save_image(photo, uid)
+			new_photo = Attachment(path=photo_path)
+			db.session.add(new_photo)
+			db.session.commit()
+			db.session.refresh(new_photo)
+			photo_id = new_photo.aid
+			user.photo_id = photo_id
 
 		db.session.commit()
 		return {
@@ -304,6 +325,15 @@ def channel(cid):
 		members = data.get('members')
 
 		new_channel = Channel(name=name, description=description)
+		if photo:
+			photo_path = save_image(photo, uid)
+			new_photo = Attachment(path=photo_path)
+			db.session.add(new_photo)
+			db.session.commit()
+			db.session.refresh(new_photo)
+			photo_id = new_photo.aid
+			new_channel.photo_id = photo_id
+
 		db.session.add(new_channel)
 
 		db.session.commit()
@@ -314,8 +344,6 @@ def channel(cid):
 		if members:
 			for m in members:
 				db.session.add(User_Channel(uid=m, cid=new_channel.cid, access_level=0))
-
-		save_image(photo, uid)
 
 		db.session.commit()
 
@@ -351,6 +379,15 @@ def channel(cid):
 			members_to_add = set(members_request) - set(members_in_channel)
 
 			photo = data.get('photo')
+			if photo:
+				photo_path = save_image(photo, uid)
+				new_photo = Attachment(path=photo_path)
+				db.session.add(new_photo)
+				db.session.commit()
+				db.session.refresh(new_photo)
+				photo_id = new_photo.aid
+				channel.photo_id = photo_id
+
 			channel.name = name
 			channel.description = description
 
@@ -362,8 +399,6 @@ def channel(cid):
 				user_channel_to_delete = User_Channel.query.get((m, cid))
 				if user_channel_to_delete:
 					db.session.delete(user_channel_to_delete)
-
-			save_image(photo, uid)
 
 			db.session.commit()
 
@@ -439,7 +474,7 @@ def channel_posts(cid):
 	args = request.args
 	page = int(args.get('page', 1))
 	count = int(args.get('count', 5))
-	posts = Post.query.filter_by(cid=cid).all()
+	posts = Post.query.filter_by(cid=cid).all()[::-1]
 	posts_count = len(posts)
 	if posts_count < count:
 		posts_page = posts
@@ -561,8 +596,8 @@ def search():
 	uid = int(uid)
 	args = request.args
 	q = args.get('query')
-	page = args.get('page', 1)
-	count = args.get('count', 5)
+	page = int(args.get('page', 1))
+	count = int(args.get('count', 5))
 
 	# 1 - только контакты, 2 - только не контакты, 0 - все
 	search_type = int(args.get('contact', 0))
