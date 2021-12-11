@@ -96,7 +96,7 @@ def user(uid):
 				'login': user.login,
 				'name': user.name,
 				'status': user.utype.name,
-				'photo': user.photo.path if user.photo else None,
+				'photo': app.config['BASE_URL'] + 'uploads/' + user.photo.path if user.photo else None,
 				'isContact': isContact
 			}
 
@@ -272,7 +272,7 @@ def user_channels():
 		items.append({
 			'id': channel.cid,
 			'name': channel.name,
-			'photo': channel.photo.path if channel.photo else None
+			'photo': app.config['BASE_URL'] + 'uploads/' + channel.photo.path if channel.photo else None
 		})
 
 	return {
@@ -296,7 +296,7 @@ def channel(cid):
 					'id': channel.cid,
 					'name': channel.name,
 					'description': channel.description,
-					'photo': channel.photo.path if channel.photo else None,
+					'photo': app.config['BASE_URL'] + 'uploads/' + channel.photo.path if channel.photo else None,
 					'creatorId': User_Channel.query.filter_by(cid=channel.cid, access_level=1).first().uid,
 					'members': [u.uid for u in User_Channel.query.filter_by(cid=cid).all()]
 				},
@@ -454,7 +454,7 @@ def channel_posts(cid):
 			'login': author.login,
 			'name': author.name,
 			'status': author.utype.name,
-			'photo': author.photo.path if author.photo else None
+			'photo': app.config['BASE_URL'] + 'uploads/' + author.photo.path if author.photo else None
 		}
 		if author.utype_id == 1:  # student
 			student = Student.query.get(author.uid)
@@ -492,7 +492,7 @@ def posts(pid):
 				'login': author.login,
 				'name': author.name,
 				'status': author.utype.name,
-				'photo': author.photo.path if author.photo else None
+				'photo': app.config['BASE_URL'] + 'uploads/' + author.photo.path if author.photo else None
 			}
 			if author.utype_id == 1:  # student
 				student = Student.query.get(author.uid)
@@ -607,7 +607,7 @@ def search():
 			'login': u.login,
 			'name': u.name,
 			'status': u.utype.name,
-			'photo': u.photo.path if u.photo else None,
+			'photo': app.config['BASE_URL'] + 'uploads/' + u.photo.path if u.photo else None,
 			'isContact': isContact
 		}
 
@@ -656,7 +656,7 @@ def user_contacts():
 			'login': user.login,
 			'name': user.name,
 			'status': user.utype.name,
-			'photo': user.photo.path if user.photo else None
+			'photo': app.config['BASE_URL'] + 'uploads/' + user.photo.path if user.photo else None
 		}
 
 		if user.utype_id == 1:  # student
@@ -761,7 +761,7 @@ def direct(partner):
 		entry = {
 			'id': m.id,
 			'authorId': m.sender,
-			'receiverId': m.receiver,
+			'recieverId': m.receiver,
 			'text': m.text
 		}
 		items.append(entry)
