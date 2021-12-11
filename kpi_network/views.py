@@ -14,11 +14,15 @@ def before_first_request():
 
 def save_image(b64string, uid):
 	starter = b64string.find(',')
-	image_data = bytes(b64string[starter+1:], encoding='ascii')
-	with Image.open(BytesIO(b64decode(image_data))) as img:
-		filename = f'{uid}_{int(datetime.now().timestamp())}.{img.format.lower()}'
-		img.save(f'kpi_network/static/media/{filename}')
-	# https://stackoverflow.com/questions/54147694/python-how-to-turn-an-image-into-a-string-and-back
+	if starter == -1:
+		return None
+	try:
+		image_data = bytes(b64string[starter+1:], encoding='ascii')
+		with Image.open(BytesIO(b64decode(image_data))) as img:
+			filename = f'{uid}_{int(datetime.now().timestamp())}.{img.format.lower()}'
+			img.save(f'kpi_network/static/media/{filename}')
+	except:
+		return None
 	return filename
 
 
@@ -150,12 +154,13 @@ def user(uid):
 		new_user = User(login=login, password=password, name=name, utype_id=utype)
 		if photo:
 			photo_path = save_image(photo, new_user.uid)
-			new_photo = Attachment(path=photo_path)
-			db.session.add(new_photo)
-			db.session.commit()
-			db.session.refresh(new_photo)
-			photo_id = new_photo.aid
-			new_user.photo_id = photo_id
+			if photo_path:
+				new_photo = Attachment(path=photo_path)
+				db.session.add(new_photo)
+				db.session.commit()
+				db.session.refresh(new_photo)
+				photo_id = new_photo.aid
+				new_user.photo_id = photo_id
 
 		db.session.add(new_user)
 		db.session.commit()
@@ -231,12 +236,13 @@ def user(uid):
 
 		if photo:
 			photo_path = save_image(photo, uid)
-			new_photo = Attachment(path=photo_path)
-			db.session.add(new_photo)
-			db.session.commit()
-			db.session.refresh(new_photo)
-			photo_id = new_photo.aid
-			user.photo_id = photo_id
+			if photo_path:
+				new_photo = Attachment(path=photo_path)
+				db.session.add(new_photo)
+				db.session.commit()
+				db.session.refresh(new_photo)
+				photo_id = new_photo.aid
+				user.photo_id = photo_id
 
 		db.session.commit()
 		return {
@@ -326,12 +332,13 @@ def channel(cid):
 		new_channel = Channel(name=name, description=description)
 		if photo:
 			photo_path = save_image(photo, uid)
-			new_photo = Attachment(path=photo_path)
-			db.session.add(new_photo)
-			db.session.commit()
-			db.session.refresh(new_photo)
-			photo_id = new_photo.aid
-			new_channel.photo_id = photo_id
+			if photo_path:
+				new_photo = Attachment(path=photo_path)
+				db.session.add(new_photo)
+				db.session.commit()
+				db.session.refresh(new_photo)
+				photo_id = new_photo.aid
+				new_channel.photo_id = photo_id
 
 		db.session.add(new_channel)
 
@@ -380,12 +387,13 @@ def channel(cid):
 			photo = data.get('photo')
 			if photo:
 				photo_path = save_image(photo, uid)
-				new_photo = Attachment(path=photo_path)
-				db.session.add(new_photo)
-				db.session.commit()
-				db.session.refresh(new_photo)
-				photo_id = new_photo.aid
-				channel.photo_id = photo_id
+				if photo_path:
+					new_photo = Attachment(path=photo_path)
+					db.session.add(new_photo)
+					db.session.commit()
+					db.session.refresh(new_photo)
+					photo_id = new_photo.aid
+					channel.photo_id = photo_id
 
 			channel.name = name
 			channel.description = description
