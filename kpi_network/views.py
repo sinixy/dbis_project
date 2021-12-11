@@ -258,14 +258,13 @@ def user_channels():
 	args = request.args
 	page = int(args.get('page', 1))
 	count = int(args.get('count', 5))
-	channels = User_Channel.query.filter_by(uid=uid).all()
-	channels_count = len(channels)
+	channels = User_Channel.query.filter_by(uid=uid)
+	channels_count = channels.count()
 	if channels_count < count:
-		channels_page = channels
+		channels_page = channels.all()
 	else:
 		start = (page - 1) * count
-		end = start + count
-		channels_page = channels[start:end]
+		channels_page = channels.limit(count).offset(start).all()
 
 	items = []
 	for c in channels_page:
@@ -433,14 +432,13 @@ def channel_members(cid):
 	args = request.args
 	page = int(args.get('page', 1))
 	count = int(args.get('count', 5))
-	users = User_Channel.query.filter_by(cid=cid).all()
-	users_count = len(users)
+	users = User_Channel.query.filter_by(cid=cid)
+	users_count = users.count()
 	if users_count < count:
-		users_page = users
+		users_page = users.all()
 	else:
 		start = (page - 1) * count
-		end = start + count
-		users_page = users[start:end]
+		users_page = users.limit(count).offset(start).all()
 
 	items = []
 	for u in users_page:
@@ -474,14 +472,13 @@ def channel_posts(cid):
 	args = request.args
 	page = int(args.get('page', 1))
 	count = int(args.get('count', 5))
-	posts = Post.query.filter_by(cid=cid).all()[::-1]
-	posts_count = len(posts)
+	posts = Post.query.filter_by(cid=cid).order_by(Post.date.desc())
+	posts_count = posts.count()
 	if posts_count < count:
-		posts_page = posts
+		posts_page = posts.all()
 	else:
 		start = (page - 1) * count
-		end = start + count
-		posts_page = posts[start:end]
+		posts_page = posts.limit(count).offset(start).all()
 
 	items = []
 	for p in posts_page:
@@ -596,48 +593,44 @@ def search():
 	uid = int(uid)
 	args = request.args
 	q = args.get('query')
-	if not q:
-		return {
-			'data': {
-				'items': [],
-				'total': 0
-			},
-			'errors': []
-		}, 200
 	page = int(args.get('page', 1))
 	count = int(args.get('count', 5))
+	if q:
+		# 1 - только контакты, 2 - только не контакты, 0 - все
+		search_type = int(args.get('contact', 0))
+		res_raw = User.query.msearch(q, fields=['login', 'name']).all()
+		user_contacts = [i.uid_2 for i in Contacts.query.filter_by(uid_1=uid).all()]
+		if search_type == 0:
+			# шукати серед усіх користувачів
+			res = res_raw
+		elif search_type == 1:
+			# шукати лише серед контактів
+			res = []
+			for u in res_raw:
+				if u.uid in user_contacts:
+					res.append(u)
+		elif search_type == 2:
+			# шукати серед усіх користувачів, окрім контактів
+			res = []
+			for u in res_raw:
+				if u.uid not in user_contacts:
+					res.append(u)
+		else:
+			return {
+				'data': {},
+				'errors': ['Invalid contact value']
+			}
 
-	# 1 - только контакты, 2 - только не контакты, 0 - все
-	search_type = int(args.get('contact', 0))
-	res_raw = User.query.msearch(q, fields=['login', 'name']).all()
-	user_contacts = [i.uid_2 for i in Contacts.query.filter_by(uid_1=uid).all()]
-	if search_type == 0:
-		# шукати серед усіх користувачів
-		res = res_raw
-	elif search_type == 1:
-		# шукати лише серед контактів
-		res = []
-		for u in res_raw:
-			if u.uid in user_contacts:
-				res.append(u)
-	elif search_type == 2:
-		# шукати серед усіх користувачів, окрім контактів
-		res = []
-		for u in res_raw:
-			if u.uid not in user_contacts:
-				res.append(u)
+		if len(res) < count:
+			res_page = res
+		else:
+			start = (page - 1) * count
+			end = start + count
+			res_page = res[start:end]
 	else:
-		return {
-			'data': {},
-			'errors': ['Invalid contact value']
-		}
-
-	if len(res) < count:
-		res_page = res
-	else:
+		res_raw = User.query.msearch(q, fields=['login', 'name'])
 		start = (page - 1) * count
-		end = start + count
-		res_page = res[start:end]
+		res_page = res_raw.limit(count).offset(start).all()
 
 	items = []
 	for u in res_page:
@@ -677,18 +670,18 @@ def user_contacts():
 	args = request.args
 	page = int(args.get('page', 1))
 	count = int(args.get('count', 5))
-	contacts = [i.uid_2 for i in Contacts.query.filter_by(uid_1=uid).all()]
-	contacts_count = len(contacts)
+	contacts = Contacts.query.filter_by(uid_1=uid)
+	contacts_count = contacts.count()
 	if contacts_count < count:
-		contacts_page = contacts
+		contacts_page = contacts.all()
 	else:
 		start = (page - 1) * count
-		end = start + count
-		contacts_page = contacts[start:end]
+		#end = start + count - 1
+		contacts_page = contacts.limit(count).offset(start).all()
 
 	items = []
 	for uc in contacts_page:
-		user = User.query.get(uc)
+		user = User.query.get(uc.uid_2)
 		entry = {
 			'id': user.uid,
 			'login': user.login,
@@ -710,7 +703,8 @@ def user_contacts():
 		'data': {
 			'items': items,
 			'total': contacts_count
-		}
+		},
+		'errors': []
 	}, 200
 
 

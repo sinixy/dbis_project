@@ -28,7 +28,7 @@ class User(db.Model):
 	cookie = db.Column(db.String(128), nullable=True)
 	utype_id = db.Column(db.Integer, db.ForeignKey(User_Types.id, ondelete="CASCADE"), nullable=False)
 	utype = db.relationship(User_Types, backref='users')
-	photo_id = db.Column(db.Integer, db.ForeignKey(Attachment.aid, ondelete="CASCADE"), nullable=False, default=1)
+	photo_id = db.Column(db.Integer, db.ForeignKey(Attachment.aid, ondelete="CASCADE"), nullable=True)
 	photo = db.relationship(Attachment)
 
 	def __repr__(self):
@@ -50,7 +50,7 @@ class Channel(db.Model):
 	cid = db.Column(db.Integer, primary_key=True)
 	name = db.Column(db.String(128), nullable=False)
 	description = db.Column(db.String(128), nullable=True)
-	photo_id = db.Column(db.Integer, db.ForeignKey(Attachment.aid, ondelete="CASCADE"), nullable=False, default=2)
+	photo_id = db.Column(db.Integer, db.ForeignKey(Attachment.aid, ondelete="CASCADE"), nullable=True)
 	photo = db.relationship(Attachment)
 
 
