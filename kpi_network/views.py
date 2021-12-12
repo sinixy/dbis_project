@@ -483,7 +483,7 @@ def channel_posts(cid):
 	args = request.args
 	page = int(args.get('page', 1))
 	count = int(args.get('count', 5))
-	posts = Post.query.filter_by(cid=cid).order_by(Post.date.asc())
+	posts = Post.query.filter_by(cid=cid).order_by(Post.date.desc())
 	posts_count = posts.count()
 	if posts_count < count:
 		posts_page = posts.all()
@@ -519,7 +519,7 @@ def channel_posts(cid):
 		items.append(entry)
 
 	return {
-		'data': {'items': items, 'total': posts_count},
+		'data': {'items': items[::-1], 'total': posts_count},
 		'errors': []
 	}, 200
 
@@ -799,7 +799,7 @@ def direct(partner):
 	count = int(args.get('count', 5))
 	messages = Message.query.filter(
 		( (Message.sender == partner) & (Message.receiver == uid) ) | ( (Message.sender == uid) & (Message.receiver == partner) )
-	).order_by(Message.date.asc())
+	).order_by(Message.date.desc())
 	messages_count = messages.count()
 	if messages_count < count:
 		messages_page = messages.all()
@@ -818,7 +818,7 @@ def direct(partner):
 		items.append(entry)
 
 	return {
-		'data': {'items': items, 'total': messages_count},
+		'data': {'items': items[::-1], 'total': messages_count},
 		'errors': []
 	}, 200
 
