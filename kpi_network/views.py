@@ -381,8 +381,12 @@ def channel(cid):
 
 			members_request = data.get('members')
 			members_in_channel = [u.uid for u in User_Channel.query.filter_by(cid=cid).all()]
-			members_to_delete = set(members_in_channel) - set(members_request)
-			members_to_add = set(members_request) - set(members_in_channel)
+			if members_request:
+				members_to_delete = set(members_in_channel) - set(members_request)
+				members_to_add = set(members_request) - set(members_in_channel)
+			else:
+				members_to_delete = members_in_channel
+				members_to_add = []
 
 			photo = data.get('photo')
 			if photo:

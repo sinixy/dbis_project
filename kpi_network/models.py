@@ -25,10 +25,10 @@ class User(db.Model):
 	login = db.Column(db.String(128), nullable=False, unique=True)
 	password = db.Column(db.String(64), nullable=False)
 	name = db.Column(db.String(128), nullable=False)
-	cookie = db.Column(db.String(128), nullable=True)
+	cookie = db.Column(db.String(128), nullable=True, default=None)
 	utype_id = db.Column(db.Integer, db.ForeignKey(User_Types.id, ondelete="CASCADE"), nullable=False)
 	utype = db.relationship(User_Types, backref='users')
-	photo_id = db.Column(db.Integer, db.ForeignKey(Attachment.aid, ondelete="CASCADE"), nullable=True)
+	photo_id = db.Column(db.Integer, db.ForeignKey(Attachment.aid, ondelete="CASCADE"), nullable=True, default=None)
 	photo = db.relationship(Attachment)
 
 	def __repr__(self):
@@ -49,8 +49,8 @@ class Instructor(db.Model):
 class Channel(db.Model):
 	cid = db.Column(db.Integer, primary_key=True)
 	name = db.Column(db.String(128), nullable=False)
-	description = db.Column(db.String(128), nullable=True)
-	photo_id = db.Column(db.Integer, db.ForeignKey(Attachment.aid, ondelete="CASCADE"), nullable=True)
+	description = db.Column(db.String(128), nullable=True, default=None)
+	photo_id = db.Column(db.Integer, db.ForeignKey(Attachment.aid, ondelete="CASCADE"), nullable=True, default=None)
 	photo = db.relationship(Attachment)
 
 
@@ -72,7 +72,7 @@ class Post(db.Model):
 	cid = db.Column(db.Integer, db.ForeignKey(Channel.cid, ondelete="CASCADE"), nullable=False)
 	channel = db.relationship(Channel, backref='posts')
 	text = db.Column(db.String(128), nullable=False, default='')
-	aid = db.Column(db.Integer, db.ForeignKey(Attachment.aid, ondelete="CASCADE"),  nullable=True)
+	aid = db.Column(db.Integer, db.ForeignKey(Attachment.aid, ondelete="CASCADE"),  nullable=True, default=None)
 	attachment = db.relationship(Attachment)
 	author_id = db.Column(db.Integer, db.ForeignKey(User.uid, ondelete="CASCADE"), nullable=False)
 	author = db.relationship(User, backref='posts')
@@ -86,7 +86,7 @@ class Comment(db.Model):
 	author = db.relationship(User, backref='comments')
 	post_id = db.Column(db.Integer, db.ForeignKey(Post.id, ondelete="CASCADE"), nullable=False)
 	post = db.relationship(Post, backref='comments')
-	aid = db.Column(db.Integer, db.ForeignKey(Attachment.aid, ondelete="CASCADE"),  nullable=True)
+	aid = db.Column(db.Integer, db.ForeignKey(Attachment.aid, ondelete="CASCADE"),  nullable=True, default=None)
 	attachment = db.relationship(Attachment)
 	date = db.Column(db.DateTime, nullable=False, default=datetime.now)
 
@@ -96,7 +96,7 @@ class Message(db.Model):
 	sender = db.Column(db.Integer, db.ForeignKey(User.uid), nullable=False)
 	receiver = db.Column(db.Integer, db.ForeignKey(User.uid), nullable=False)
 	text = db.Column(db.Text, nullable=False, default='')
-	aid = db.Column(db.Integer, db.ForeignKey(Attachment.aid, ondelete="CASCADE"), nullable=True)
+	aid = db.Column(db.Integer, db.ForeignKey(Attachment.aid, ondelete="CASCADE"), nullable=True, default=None)
 	attachment = db.relationship(Attachment)
 	date = db.Column(db.DateTime, nullable=False, default=datetime.now)
 
