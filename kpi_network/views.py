@@ -769,7 +769,7 @@ def direct(partner):
 		entry = {
 			'id': m.id,
 			'authorId': m.sender,
-			'recieverId': m.receiver,
+			'receiverId': m.receiver,
 			'text': m.text
 		}
 		items.append(entry)
