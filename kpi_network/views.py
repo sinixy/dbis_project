@@ -303,8 +303,7 @@ def channel(cid):
 					'name': channel.name,
 					'description': channel.description,
 					'photo': app.config['BASE_URL'] + 'uploads/' + channel.photo.path if channel.photo else None,
-					'creatorId': User_Channel.query.filter_by(cid=channel.cid, access_level=1).first().uid,
-					'members': [u.uid for u in User_Channel.query.filter_by(cid=cid).all()]
+					'creatorId': User_Channel.query.filter_by(cid=channel.cid, access_level=1).first().uid
 				},
 				'errors': []
 			}, 200
@@ -437,6 +436,46 @@ def channel(cid):
 		}, 200
 
 
+@app.route('/api/channel/<int:cid>/members', methods=['GET'])
+def channel_members(cid):
+	# cid - id каналу
+	# отримати список учасників каналу
+	args = request.args
+	page = int(args.get('page', 1))
+	count = int(args.get('count', 5))
+	users = User_Channel.query.filter_by(cid=cid)
+	users_count = users.count()
+	if users_count < count:
+		users_page = users.all()
+	else:
+		start = (page - 1) * count
+		users_page = users.limit(count).offset(start).all()
+
+	items = []
+	for u in users_page:
+		user = u.user
+		entry = {
+			'id': user.uid,
+			'login': user.login,
+			'name': user.name,
+			'status': user.utype.name,
+			'photo': user.photo.path if user.photo else None
+		}
+
+		if user.utype_id == 1:  # student
+			student = Student.query.get(user.uid)
+			entry['department'] = student.department
+			entry['group'] = student.group
+		elif user.utype_id == 2:  # insturctor
+			instructor = Instructor.query.get(user.uid)
+			entry['department'] = instructor.department
+		items.append(entry)
+
+	return {
+		'data': {'items': items, 'total': users_count},
+		'errors': []
+	}, 200
+
 @app.route('/api/channel/<int:cid>/posts', methods=['GET'])
 def channel_posts(cid):
 	# cid - id каналу
@@ -444,7 +483,7 @@ def channel_posts(cid):
 	args = request.args
 	page = int(args.get('page', 1))
 	count = int(args.get('count', 5))
-	posts = Post.query.filter_by(cid=cid).order_by(Post.date.desc())
+	posts = Post.query.filter_by(cid=cid).order_by(Post.date.asc())
 	posts_count = posts.count()
 	if posts_count < count:
 		posts_page = posts.all()
@@ -760,7 +799,7 @@ def direct(partner):
 	count = int(args.get('count', 5))
 	messages = Message.query.filter(
 		( (Message.sender == partner) & (Message.receiver == uid) ) | ( (Message.sender == uid) & (Message.receiver == partner) )
-	).order_by(Message.date.desc())
+	).order_by(Message.date.asc())
 	messages_count = messages.count()
 	if messages_count < count:
 		messages_page = messages.all()
