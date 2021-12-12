@@ -790,6 +790,8 @@ def message():
 			'errors': ['Unauthorized']
 		}, 401
 	uid = int(uid)
+
+	data = request.json
 	receiver = data.get('receiverId')
 	text = data.get('text')
 
