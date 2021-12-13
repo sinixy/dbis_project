@@ -323,6 +323,12 @@ def channel(cid):
 				'errors': ['Unauthorized']
 			}, 401
 		uid = int(uid)
+		creator = User.query.get(uid)
+		if creator.utype_id != 2:
+			return {
+				'data': {},
+				'errors': ['Channel can be created only by an instructor!']
+			}
 		data = request.json
 		name = data.get('name')
 		description = data.get('description', '')
