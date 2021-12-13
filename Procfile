@@ -1,1 +1,0 @@
-web: gunicorn kpi_network:app
