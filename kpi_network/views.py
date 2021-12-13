@@ -393,7 +393,7 @@ def channel(cid):
 			description = data.get('description')
 
 			members_request = data.get('members')
-			members_in_channel = [u.login for u in User_Channel.query.filter_by(cid=cid).all()]
+			members_in_channel = [u.user.login for u in User_Channel.query.filter_by(cid=cid).all()]
 			if members_request:
 				members_to_delete = set(members_in_channel) - set(members_request)
 				members_to_add = set(members_request) - set(members_in_channel)
