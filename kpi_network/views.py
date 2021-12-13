@@ -304,7 +304,7 @@ def channel(cid):
 					'description': channel.description,
 					'photo': app.config['BASE_URL'] + 'uploads/' + channel.photo.path if channel.photo else None,
 					'creatorId': User_Channel.query.filter_by(cid=channel.cid, access_level=1).first().uid,
-					'members': [u.login for u in User_Channel.query.filter_by(cid=cid).all()]
+					'members': [u.user.login for u in User_Channel.query.filter_by(cid=cid).all()]
 				},
 				'errors': []
 			}, 200
@@ -353,10 +353,13 @@ def channel(cid):
 
 		user_channel = User_Channel(uid=uid, cid=new_channel.cid, access_level=1)
 		db.session.add(user_channel)
+
+		errors = []
 		if members:
 			for m in members:
 				u = User.query.filter_by(login=m).first()
 				if not u:
+					errors.append(f'User with login {m} does not exist')
 					continue
 				muid = u.uid
 				db.session.add(User_Channel(uid=muid, cid=new_channel.cid, access_level=0))
@@ -365,7 +368,7 @@ def channel(cid):
 
 		return {
 			'data': {'id': new_channel.cid},
-			'errors': []
+			'errors': errors
 		}, 200
 
 	elif request.method == 'PUT':
@@ -412,15 +415,18 @@ def channel(cid):
 			channel.name = name
 			channel.description = description
 
+			errors = []
 			for m in members_to_add:
 				u = User.query.filter_by(login=m).first()
 				if not u:
+					errors.append(f'User with login {m} does not exist')
 					continue
 				muid = u.uid
 				db.session.add(User_Channel(uid=muid, cid=cid, access_level=0))
 			for m in members_to_delete:
 				u = User.query.filter_by(login=m).first()
 				if not u:
+					errors.append(f'User with login {m} does not exist')
 					continue
 				muid = u.uid
 				if muid == uid:
@@ -433,7 +439,7 @@ def channel(cid):
 
 			return {
 				'data': {},
-				'errors': []
+				'errors': errors
 			}, 200
 		else:
 			return {
