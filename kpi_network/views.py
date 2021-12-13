@@ -595,45 +595,43 @@ def search():
 	q = args.get('query')
 	page = int(args.get('page', 1))
 	count = int(args.get('count', 5))
+	# 1 - тільки контакти, 2 - только не контакти, 0 - усі
+	search_type = int(args.get('contact', 0))
+	user_contacts = [i.uid_2 for i in Contacts.query.filter_by(uid_1=uid).all()]
 	if q:
-		# 1 - тільки контакти, 2 - только не контакти, 0 - усі
-		search_type = int(args.get('contact', 0))
 		res_raw = User.query.msearch(q, fields=['login', 'name']).all()
-		user_contacts = [i.uid_2 for i in Contacts.query.filter_by(uid_1=uid).all()]
-		if search_type == 0:
-			# шукати серед усіх користувачів
-			res = res_raw
-		elif search_type == 1:
-			# шукати лише серед контактів
-			res = []
-			for u in res_raw:
-				if u.uid in user_contacts:
-					res.append(u)
-		elif search_type == 2:
-			# шукати серед усіх користувачів, окрім контактів
-			res = []
-			for u in res_raw:
-				if u.uid not in user_contacts:
-					res.append(u)
-		else:
-			return {
-				'data': {},
-				'errors': ['Invalid contact value']
-			}
-
-		total = len(res)
-
-		if total < count:
-			res_page = res
-		else:
-			start = (page - 1) * count
-			end = start + count
-			res_page = res[start:end]
 	else:
-		res = User.query.msearch(q, fields=['login', 'name'])
-		total = res.count()
+		res_raw = User.query.all()
+
+
+	if search_type == 0:
+		# шукати серед усіх користувачів
+		res = res_raw
+	elif search_type == 1:
+		# шукати лише серед контактів
+		res = []
+		for u in res_raw:
+			if u.uid in user_contacts:
+				res.append(u)
+	elif search_type == 2:
+		# шукати серед усіх користувачів, окрім контактів
+		res = []
+		for u in res_raw:
+			if u.uid not in user_contacts:
+				res.append(u)
+	else:
+		return {
+			'data': {},
+			'errors': ['Invalid contact value']
+		}
+
+	total = len(res)
+	if total < count:
+		res_page = res
+	else:
 		start = (page - 1) * count
-		res_page = res.limit(count).offset(start).all()
+		end = start + count
+		res_page = res[start:end]
 
 	items = []
 	for u in res_page:
