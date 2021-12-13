@@ -393,7 +393,7 @@ def channel(cid):
 			description = data.get('description')
 
 			members_request = data.get('members')
-			members_in_channel = [u.uid for u in User_Channel.query.filter_by(cid=cid).all()]
+			members_in_channel = [u.login for u in User_Channel.query.filter_by(cid=cid).all()]
 			if members_request:
 				members_to_delete = set(members_in_channel) - set(members_request)
 				members_to_add = set(members_request) - set(members_in_channel)
@@ -422,6 +422,8 @@ def channel(cid):
 					errors.append(f'User with login {m} does not exist')
 					continue
 				muid = u.uid
+				if muid == uid:
+					continue
 				db.session.add(User_Channel(uid=muid, cid=cid, access_level=0))
 			for m in members_to_delete:
 				u = User.query.filter_by(login=m).first()
