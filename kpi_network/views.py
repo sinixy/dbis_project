@@ -303,7 +303,8 @@ def channel(cid):
 					'name': channel.name,
 					'description': channel.description,
 					'photo': app.config['BASE_URL'] + 'uploads/' + channel.photo.path if channel.photo else None,
-					'creatorId': User_Channel.query.filter_by(cid=channel.cid, access_level=1).first().uid
+					'creatorId': User_Channel.query.filter_by(cid=channel.cid, access_level=1).first().uid,
+					'members': [u.login for u in User_Channel.query.filter_by(cid=cid).all()]
 				},
 				'errors': []
 			}, 200
@@ -348,7 +349,11 @@ def channel(cid):
 		db.session.add(user_channel)
 		if members:
 			for m in members:
-				db.session.add(User_Channel(uid=m, cid=new_channel.cid, access_level=0))
+				u = User.query.filter_by(login=m).first()
+				if not u:
+					continue
+				muid = u.uid
+				db.session.add(User_Channel(uid=muid, cid=new_channel.cid, access_level=0))
 
 		db.session.commit()
 
@@ -402,11 +407,19 @@ def channel(cid):
 			channel.description = description
 
 			for m in members_to_add:
-				db.session.add(User_Channel(uid=m, cid=cid, access_level=0))
-			for m in members_to_delete:
-				if m == uid:
+				u = User.query.filter_by(login=m).first()
+				if not u:
 					continue
-				user_channel_to_delete = User_Channel.query.get((m, cid))
+				muid = u.uid
+				db.session.add(User_Channel(uid=muid, cid=cid, access_level=0))
+			for m in members_to_delete:
+				u = User.query.filter_by(login=m).first()
+				if not u:
+					continue
+				muid = u.uid
+				if muid == uid:
+					continue
+				user_channel_to_delete = User_Channel.query.get((muid, cid))
 				if user_channel_to_delete:
 					db.session.delete(user_channel_to_delete)
 
@@ -436,45 +449,6 @@ def channel(cid):
 		}, 200
 
 
-@app.route('/api/channel/<int:cid>/members', methods=['GET'])
-def channel_members(cid):
-	# cid - id каналу
-	# отримати список учасників каналу
-	args = request.args
-	page = int(args.get('page', 1))
-	count = int(args.get('count', 5))
-	users = User_Channel.query.filter_by(cid=cid)
-	users_count = users.count()
-	if users_count < count:
-		users_page = users.all()
-	else:
-		start = (page - 1) * count
-		users_page = users.limit(count).offset(start).all()
-
-	items = []
-	for u in users_page:
-		user = u.user
-		entry = {
-			'id': user.uid,
-			'login': user.login,
-			'name': user.name,
-			'status': user.utype.name,
-			'photo': user.photo.path if user.photo else None
-		}
-
-		if user.utype_id == 1:  # student
-			student = Student.query.get(user.uid)
-			entry['department'] = student.department
-			entry['group'] = student.group
-		elif user.utype_id == 2:  # insturctor
-			instructor = Instructor.query.get(user.uid)
-			entry['department'] = instructor.department
-		items.append(entry)
-
-	return {
-		'data': {'items': items, 'total': users_count},
-		'errors': []
-	}, 200
 
 @app.route('/api/channel/<int:cid>/posts', methods=['GET'])
 def channel_posts(cid):
