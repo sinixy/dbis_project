@@ -1,0 +1,20 @@
+version: '3.8'
+services: 
+  postgres:
+    container_name: postgres
+    image: postgres:latest
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: kpi_network
+    ports:
+      - 5432:5432
+  app:
+    build: .
+    environment:
+      - BASE_URL=http://127.0.0.1:5000/
+      - DATABASE_URL=postgres://postgres:postgres@localhost:5432/kpi_network
+    depends_on: 
+      - postgres
+    ports:
+      - 5000:5000
+    command: gunicorn kpi_network:app
